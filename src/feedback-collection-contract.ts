@@ -8,6 +8,8 @@ import sortKeysRecursive from 'sort-keys-recursive';
 import {Asset} from './asset';
 import { Marketplace } from './marketplace';
 import { Seller } from './seller';
+import { Feedback } from './feedback';
+import common from 'mocha/lib/interfaces/common';
 
 @Info({title: 'FeedbackCollection', description: 'Smart contract for Feedback Collection System'})
 export class FeedbackCollectionContract extends Contract {
@@ -40,23 +42,23 @@ export class FeedbackCollectionContract extends Contract {
             await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(seller))));
         }
 
-        // const marketplaces:Marketplace[] = [
-        //     {
-        //         ID: 'M1',
-        //         Name: 'Trendyol',
-        //         Url: 'http://www.trendyol.com'
-        //     },
-        //     {
-        //         ID: 'M2',
-        //         Name: 'HepsiBurada',
-        //         Url: 'http://www.hepsiburada.com'
-        //     }
-        // ]
+        const marketplaces:Marketplace[] = [
+            {
+                ID: 'M1',
+                Name: 'Trendyol',
+                Url: 'http://www.trendyol.com'
+            },
+            {
+                ID: 'M2',
+                Name: 'HepsiBurada',
+                Url: 'http://www.hepsiburada.com'
+            }
+        ]
 
-        // for (const mp of marketplaces) {
-        //     const compositeKey = await ctx.stub.createCompositeKey('Marketplace', ['ID', 'Name'])
-        //     await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(mp))));
-        // }
+        for (const mp of marketplaces) {
+            const compositeKey = await ctx.stub.createCompositeKey('Marketplace', [mp.ID, mp.Name])
+            await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(mp))));
+        }
     }
 
     // CreateAsset issues a new asset to the world state with given details.
@@ -197,6 +199,28 @@ export class FeedbackCollectionContract extends Contract {
         return !result.done;
     }
 
+    // ReadAsset returns the asset stored in the world state with given id.
+    @Transaction(false)
+    public async ReadSeller(ctx: Context, LegalEntityID: string): Promise<string> {
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('Seller', [LegalEntityID])
+        let result = await iterator.next();
+        let record:Seller;
+        if (!result.done) {
+            const strValue = Buffer.from(result.value.value.toString()).toString('utf8');
+            try {
+                record = JSON.parse(strValue);
+            } catch (err) {
+                // console.log(err);
+                // record = strValue;
+                throw new Error(`Error parsing seller record`);
+            }
+            return JSON.stringify(record);
+        }
+        else {
+            throw new Error(`The seller with ID ${LegalEntityID} does not exist`);
+        }
+    }
+
     // GetAllSellers returns all assets found in the world state.
     @Transaction(false)
     @Returns('string')
@@ -218,6 +242,81 @@ export class FeedbackCollectionContract extends Contract {
             result = await iterator.next();
         }
         return JSON.stringify(allResults);
+    }
+
+    // GetAllSellers returns all assets found in the world state.
+    @Transaction(false)
+    @Returns('string')
+    public async GetAllMarketplaces(ctx: Context): Promise<string> {
+        const allResults = [];
+        // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('Marketplace',[])
+        let result = await iterator.next();
+        while (!result.done) {
+            const strValue = Buffer.from(result.value.value.toString()).toString('utf8');
+            let record;
+            try {
+                record = JSON.parse(strValue);
+            } catch (err) {
+                console.log(err);
+                record = strValue;
+            }
+            allResults.push(record);
+            result = await iterator.next();
+        }
+        return JSON.stringify(allResults);
+    }
+
+    // AddFeedback creates a new feedback record to the world state with given details.
+    @Transaction()
+    public async AddFeedback(ctx: Context, ID: string, SellerId: string, MarketplaceId: string, FeedbackDate: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback', [,,FeedbackTokenId]);
+        let result = await iterator.next();
+        if (!result.done)
+        {
+            throw new Error(`The provided feedback token was used before`);
+        }
+
+        const sellerIterator = await ctx.stub.getStateByPartialCompositeKey('Seller', [SellerId])
+        let sellerResult = await sellerIterator.next();
+        let sellerRecord:Seller;
+        if (!sellerResult.done)
+        {
+            const strValue = Buffer.from(sellerResult.value.value.toString()).toString('utf8');
+            try {
+                sellerRecord = JSON.parse(strValue);
+            } catch (err) {
+                // console.log(err);
+                // sellerRecord = strValue;
+                throw new Error(`Error parsing seller record`);
+            }
+            
+            let totalScore = sellerRecord.LastReputationScore*sellerRecord.NoOfTransactions+Score;
+            let newScore = totalScore/(sellerRecord.NoOfTransactions+1);
+
+            sellerRecord.LastReputationScore= newScore;
+            sellerRecord.NoOfTransactions +=1;
+
+            const compositeKey = await ctx.stub.createCompositeKey('Seller', [sellerRecord.LegalEntityID, sellerRecord.Name])
+            await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(sellerRecord))));
+        }
+        else
+        {
+            throw new Error(`The seller ${SellerId} does not exist`);
+        }
+   
+        const feedback: Feedback = {
+            ID: ID,
+            Comment: Comment,
+            FeedbackDate: FeedbackDate,
+            FeedbackTokenId: FeedbackTokenId,
+            MarketplaceId: MarketplaceId,
+            Score: Score,
+            SellerId: SellerId
+        };
+        
+        const compositeKey = await ctx.stub.createCompositeKey('Feedback', [feedback.ID, feedback.SellerId, feedback.FeedbackTokenId])
+        await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(feedback))));
     }
 
 }

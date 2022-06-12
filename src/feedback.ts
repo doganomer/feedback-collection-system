@@ -18,7 +18,7 @@ export class Feedback {
     public MarketplaceId: string;
 
     @Property()
-    public FeedbackDate: Date;
+    public FeedbackDate: string;
 
     @Property()
     public Score: number;
