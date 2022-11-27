@@ -3,7 +3,6 @@
 */
 
 import {Object, Property} from 'fabric-contract-api';
-import { Marketplace } from './marketplace';
 import { Seller } from './seller';
 
 @Object()
@@ -13,9 +12,6 @@ export class Feedback {
 
     @Property()
     public SellerId: string;
-
-    @Property()
-    public MarketplaceId: string;
 
     @Property()
     public FeedbackDate: string;

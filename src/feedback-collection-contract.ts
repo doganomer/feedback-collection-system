@@ -5,8 +5,6 @@
 import {Context, Contract, Info, Returns, Transaction} from 'fabric-contract-api';
 import stringify from 'json-stringify-deterministic';
 import sortKeysRecursive from 'sort-keys-recursive';
-import {Asset} from './asset';
-import { Marketplace } from './marketplace';
 import { Seller } from './seller';
 import { Feedback } from './feedback';
 import common from 'mocha/lib/interfaces/common';
@@ -40,24 +38,6 @@ export class FeedbackCollectionContract extends Contract {
         for (const seller of sellers) {
             const compositeKey = await ctx.stub.createCompositeKey('Seller', [seller.LegalEntityID, seller.Name])
             await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(seller))));
-        }
-
-        const marketplaces:Marketplace[] = [
-            {
-                ID: 'M1',
-                Name: 'Trendyol',
-                Url: 'http://www.trendyol.com'
-            },
-            {
-                ID: 'M2',
-                Name: 'HepsiBurada',
-                Url: 'http://www.hepsiburada.com'
-            }
-        ]
-
-        for (const mp of marketplaces) {
-            const compositeKey = await ctx.stub.createCompositeKey('Marketplace', [mp.ID, mp.Name])
-            await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(mp))));
         }
     }
 
@@ -167,7 +147,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // Createseller creates a new seller to the world state with given details.
     @Transaction()
-    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredDate:string, RegisteredBy: string, LastReputationScore: number, NoOfTransactions: number): Promise<void> {
+    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string): Promise<void> {
         const exists = await this.SellerExists(ctx, LegalEntityID);
         if (exists) {
             throw new Error(`The seller ${LegalEntityID} already exists`);
@@ -177,10 +157,10 @@ export class FeedbackCollectionContract extends Contract {
             LegalEntityID: LegalEntityID,
             Name: Name,
             Url: Url,
-            RegisteredDate: new Date(RegisteredDate),
+            RegisteredDate: new Date(),
             RegisteredBy: RegisteredBy,
-            LastReputationScore: LastReputationScore,
-            NoOfTransactions: NoOfTransactions
+            LastReputationScore: 0,
+            NoOfTransactions: 0
         };
         // we insert data in alphabetic order using 'json-stringify-deterministic' and 'sort-keys-recursive'
 
@@ -201,7 +181,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // ReadAsset returns the asset stored in the world state with given id.
     @Transaction(false)
-    public async ReadSeller(ctx: Context, LegalEntityID: string): Promise<string> {
+    public async ReadSeller(ctx: Context, LegalEntityID: string): Promise<Seller> {
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Seller', [LegalEntityID])
         let result = await iterator.next();
         let record:Seller;
@@ -214,7 +194,8 @@ export class FeedbackCollectionContract extends Contract {
                 // record = strValue;
                 throw new Error(`Error parsing seller record`);
             }
-            return JSON.stringify(record);
+            //return JSON.stringify(record);
+            return record;
         }
         else {
             throw new Error(`The seller with ID ${LegalEntityID} does not exist`);
@@ -269,7 +250,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // AddFeedback creates a new feedback record to the world state with given details.
     @Transaction()
-    public async AddFeedback(ctx: Context, ID: string, SellerId: string, MarketplaceId: string, FeedbackDate: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
+    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback', [,,FeedbackTokenId]);
         let result = await iterator.next();
         if (!result.done)
@@ -308,9 +289,8 @@ export class FeedbackCollectionContract extends Contract {
         const feedback: Feedback = {
             ID: ID,
             Comment: Comment,
-            FeedbackDate: FeedbackDate,
+            FeedbackDate: new Date().toDateString(),
             FeedbackTokenId: FeedbackTokenId,
-            MarketplaceId: MarketplaceId,
             Score: Score,
             SellerId: SellerId
         };
