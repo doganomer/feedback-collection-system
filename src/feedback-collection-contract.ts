@@ -147,7 +147,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // Createseller creates a new seller to the world state with given details.
     @Transaction()
-    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string): Promise<void> {
+    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string, RegisteredDate: Date): Promise<void> {
         const exists = await this.SellerExists(ctx, LegalEntityID);
         if (exists) {
             throw new Error(`The seller ${LegalEntityID} already exists`);
@@ -157,7 +157,7 @@ export class FeedbackCollectionContract extends Contract {
             LegalEntityID: LegalEntityID,
             Name: Name,
             Url: Url,
-            RegisteredDate: new Date(),
+            RegisteredDate: RegisteredDate,
             RegisteredBy: RegisteredBy,
             LastReputationScore: 0,
             NoOfTransactions: 0
@@ -250,7 +250,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // AddFeedback creates a new feedback record to the world state with given details.
     @Transaction()
-    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
+    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string, FeedbackDate: string): Promise<void> {
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback', [,,FeedbackTokenId]);
         let result = await iterator.next();
         if (!result.done)
