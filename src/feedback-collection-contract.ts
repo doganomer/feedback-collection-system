@@ -147,7 +147,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // Createseller creates a new seller to the world state with given details.
     @Transaction()
-    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string): Promise<void> {
+    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string, RegisteredDate: Date): Promise<void> {
         const exists = await this.SellerExists(ctx, LegalEntityID);
         if (exists) {
             throw new Error(`The seller ${LegalEntityID} already exists`);
@@ -157,7 +157,7 @@ export class FeedbackCollectionContract extends Contract {
             LegalEntityID: LegalEntityID,
             Name: Name,
             Url: Url,
-            RegisteredDate: new Date(),
+            RegisteredDate: RegisteredDate,
             RegisteredBy: RegisteredBy,
             LastReputationScore: 0,
             NoOfTransactions: 0
@@ -205,7 +205,7 @@ export class FeedbackCollectionContract extends Contract {
     // GetAllSellers returns all assets found in the world state.
     @Transaction(false)
     @Returns('string')
-    public async GetAllSellers(ctx: Context): Promise<string> {
+    public async GetAllSellers(ctx: Context): Promise<Array<Seller>> {
         const allResults = [];
         // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Seller',[])
@@ -222,7 +222,8 @@ export class FeedbackCollectionContract extends Contract {
             allResults.push(record);
             result = await iterator.next();
         }
-        return JSON.stringify(allResults);
+    // return JSON.stringify(allResults);
+        return allResults;
     }
 
     // GetAllSellers returns all assets found in the world state.
@@ -250,7 +251,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // AddFeedback creates a new feedback record to the world state with given details.
     @Transaction()
-    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
+    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string, FeedbackDate: Date): Promise<void> {
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback', [,,FeedbackTokenId]);
         let result = await iterator.next();
         if (!result.done)
@@ -289,7 +290,7 @@ export class FeedbackCollectionContract extends Contract {
         const feedback: Feedback = {
             ID: ID,
             Comment: Comment,
-            FeedbackDate: new Date().toDateString(),
+            FeedbackDate: FeedbackDate.toDateString(),
             FeedbackTokenId: FeedbackTokenId,
             Score: Score,
             SellerId: SellerId
