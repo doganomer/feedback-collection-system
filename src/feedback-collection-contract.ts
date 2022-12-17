@@ -19,7 +19,6 @@ export class FeedbackCollectionContract extends Contract {
                 LegalEntityID: 'ID_SELLER1_ID',
                 Name: 'Seller 1',
                 Url: 'http://www.seller1.com',
-                RegisteredDate: new Date('2022-12-11'),
                 RegisteredBy: 'SYSTEM',
                 LastReputationScore:0,
                 NoOfTransactions:0,    
@@ -28,7 +27,6 @@ export class FeedbackCollectionContract extends Contract {
                 LegalEntityID: 'ID_SELLER2_ID',
                 Name: 'Seller 2',
                 Url: 'http://www.seller2.com',
-                RegisteredDate: new Date('2022-12-11'),
                 RegisteredBy: 'SYSTEM',
                 LastReputationScore:0,
                 NoOfTransactions:0,   
@@ -147,7 +145,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // Createseller creates a new seller to the world state with given details.
     @Transaction()
-    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string, RegisteredDate: Date): Promise<void> {
+    public async CreateSeller(ctx: Context, LegalEntityID: string, Name: string, Url: string, RegisteredBy: string): Promise<void> {
         const exists = await this.SellerExists(ctx, LegalEntityID);
         if (exists) {
             throw new Error(`The seller ${LegalEntityID} already exists`);
@@ -157,7 +155,6 @@ export class FeedbackCollectionContract extends Contract {
             LegalEntityID: LegalEntityID,
             Name: Name,
             Url: Url,
-            RegisteredDate: RegisteredDate,
             RegisteredBy: RegisteredBy,
             LastReputationScore: 0,
             NoOfTransactions: 0
@@ -251,7 +248,7 @@ export class FeedbackCollectionContract extends Contract {
 
     // AddFeedback creates a new feedback record to the world state with given details.
     @Transaction()
-    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string, FeedbackDate: Date): Promise<void> {
+    public async AddFeedback(ctx: Context, ID: string, SellerId: string, Score: number, Comment: string, FeedbackTokenId: string): Promise<void> {
         const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback', [,,FeedbackTokenId]);
         let result = await iterator.next();
         if (!result.done)
@@ -281,6 +278,8 @@ export class FeedbackCollectionContract extends Contract {
 
             const compositeKey = await ctx.stub.createCompositeKey('Seller', [sellerRecord.LegalEntityID, sellerRecord.Name])
             await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(sellerRecord))));
+
+
         }
         else
         {
@@ -290,7 +289,6 @@ export class FeedbackCollectionContract extends Contract {
         const feedback: Feedback = {
             ID: ID,
             Comment: Comment,
-            FeedbackDate: FeedbackDate.toDateString(),
             FeedbackTokenId: FeedbackTokenId,
             Score: Score,
             SellerId: SellerId
@@ -298,6 +296,30 @@ export class FeedbackCollectionContract extends Contract {
         
         const compositeKey = await ctx.stub.createCompositeKey('Feedback', [feedback.ID, feedback.SellerId, feedback.FeedbackTokenId])
         await ctx.stub.putState(compositeKey, Buffer.from(stringify(sortKeysRecursive(feedback))));
+    }
+
+    // GetAllSellers returns all assets found in the world state.
+    @Transaction(false)
+    @Returns('string')
+    public async GetAllFeedbacks(ctx: Context): Promise<Array<Feedback>> {
+        const allResults = [];
+        // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
+        const iterator = await ctx.stub.getStateByPartialCompositeKey('Feedback',[])
+        let result = await iterator.next();
+        while (!result.done) {
+            const strValue = Buffer.from(result.value.value.toString()).toString('utf8');
+            let record;
+            try {
+                record = JSON.parse(strValue);
+            } catch (err) {
+                console.log(err);
+                record = strValue;
+            }
+            allResults.push(record);
+            result = await iterator.next();
+        }
+    // return JSON.stringify(allResults);
+        return allResults;
     }
 
 }

@@ -16,9 +16,6 @@ export class Seller {
     public Url: string;
 
     @Property()
-    public RegisteredDate: Date;
-
-    @Property()
     public RegisteredBy: string;
 
     @Property()

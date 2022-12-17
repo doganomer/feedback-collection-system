@@ -14,9 +14,6 @@ export class Feedback {
     public SellerId: string;
 
     @Property()
-    public FeedbackDate: string;
-
-    @Property()
     public Score: number;
 
     @Property()
